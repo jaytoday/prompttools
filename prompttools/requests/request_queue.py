@@ -1,3 +1,10 @@
+# Copyright (c) Hegel AI, Inc.
+# All rights reserved.
+#
+# This source code's license can be found in the
+# LICENSE file in the root directory of this source tree.
+
+import os
 from typing import Callable, Dict, List, Tuple
 from queue import Queue, Empty
 from time import perf_counter
@@ -19,8 +26,9 @@ class RequestQueue:
         self.is_running = True
         self.worker_thread = threading.Thread(target=self._process_queue, daemon=True)
         self.worker_thread.start()
-        self.request_results = []
-        self.request_latencies = []
+        self.request_args: list[dict[str, object]] = []
+        self.request_results: list[dict[str, object]] = []
+        self.request_latencies: list[float] = []
 
     def _process_queue(self) -> None:
         while self.is_running:
@@ -33,17 +41,20 @@ class RequestQueue:
 
     def _do_task(self, fn: Callable, args: Dict[str, object]) -> None:
         try:
+            # TODO: For the streamlit app, we need to set the api key this way.
+            # Ideally, OpenAI should be able to use the env var.
+            if "OPENAI_API_KEY" in os.environ:
+                openai.api_key = os.environ["OPENAI_API_KEY"]
             res = self._run(fn, args)
+            self.request_args.append(args)
             self.request_results.append(res[0])
             self.request_latencies.append(res[1])
         # TODO: If we get an unexpected error here, the queue will hang
-        except openai.error.AuthenticationError as e:
+        except openai.AuthenticationError:
             logging.error("Authentication error. Skipping request.")
 
     @retry_decorator
-    def _run(
-        self, fn: Callable, args: Dict[str, object]
-    ) -> Tuple[Dict[str, object], float]:
+    def _run(self, fn: Callable, args: Dict[str, object]) -> Tuple[Dict[str, object], float]:
         start = perf_counter()
         result = fn(**args)
         return result, perf_counter() - start
@@ -67,14 +78,21 @@ class RequestQueue:
         """
         self.data_queue.put((callable, args))
 
-    def results(self) -> List[Dict[str, object]]:
+    def get_input_args(self) -> List[Dict[str, object]]:
+        r"""
+        Joins the queue and gets input args that lead to the result.
+        """
+        self.data_queue.join()
+        return self.request_args
+
+    def get_results(self) -> List[Dict[str, object]]:
         r"""
         Joins the queue and gets results.
         """
         self.data_queue.join()
         return self.request_results
 
-    def latencies(self) -> List[float]:
+    def get_latencies(self) -> List[float]:
         r"""
         Joins the queue and gets latencies.
         """

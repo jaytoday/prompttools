@@ -31,11 +31,7 @@ def _get_version():
 
     sha = "Unknown"
     try:
-        sha = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(ROOT_DIR))
-            .decode("ascii")
-            .strip()
-        )
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(ROOT_DIR)).decode("ascii").strip()
     except Exception:
         pass
 
@@ -102,14 +98,12 @@ if __name__ == "__main__":
         author_email="steve@hegel-ai.com, kevin@hegel-ai.com",
         license="Proprietary",
         install_requires=requirements,
-        python_requires=">=3.8",
+        python_requires=">=3.10",
         classifiers=[
             "Intended Audience :: Developers",
             "Intended Audience :: Science/Research",
             "Operating System :: MacOS :: MacOS X",
             "Operating System :: Microsoft :: Windows",
-            "Programming Language :: Python :: 3.8",
-            "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: 3.11",
             "Programming Language :: Python :: Implementation :: CPython",
